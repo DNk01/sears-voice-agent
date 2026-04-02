@@ -8,7 +8,7 @@ async def send_upload_link(email: str, token: str, base_url: str) -> None:
     """Send an email with a unique appliance photo upload link."""
     upload_url = f"{base_url}/upload/{token}"
     resend.Emails.send({
-        "from": "Sears Home Services <noreply@resend.dev>",
+        "from": "Sears Home Services <onboarding@resend.dev>",
         "to": [email],
         "subject": "Upload your appliance photo — Sears Home Services",
         "html": f"""

@@ -62,13 +62,19 @@ async def stream_handler(websocket: WebSocket) -> None:
     async def on_transcript(self, result, **kwargs):  # noqa: N805
         try:
             alt = result.channel.alternatives[0]
-            if result.is_final and alt.transcript.strip():
-                # Barge-in: stop agent and discard queued responses
+            transcript = alt.transcript.strip()
+            if not transcript:
+                return
+            # Interim result: caller started speaking — stop agent immediately
+            if not result.is_final and session.agent_speaking:
+                session.agent_speaking = False
+            # Final result: process what the caller said
+            if result.is_final:
                 if session.agent_speaking:
                     session.agent_speaking = False
                     while not session.transcript_queue.empty():
                         session.transcript_queue.get_nowait()
-                await session.transcript_queue.put(alt.transcript.strip())
+                await session.transcript_queue.put(transcript)
         except Exception as e:
             logger.warning("Transcript parsing error: %s", e)
 
@@ -81,7 +87,8 @@ async def stream_handler(websocket: WebSocket) -> None:
         model="nova-2",
         language="en-US",
         smart_format=True,
-        endpointing=500,
+        interim_results=True,
+        endpointing=300,
     ))
 
     async def receive_from_twilio():
