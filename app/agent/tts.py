@@ -9,7 +9,7 @@ async def synthesize_to_mulaw(text: str) -> bytes:
     """Synthesize text to speech and return mulaw 8kHz bytes for Twilio."""
     response = await openai_client.audio.speech.create(
         model="tts-1",
-        voice="alloy",
+        voice="shimmer",
         input=text,
         response_format="pcm",  # 24kHz, 16-bit mono, little-endian
     )

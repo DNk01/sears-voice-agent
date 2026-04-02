@@ -91,6 +91,15 @@ async def stream_handler(websocket: WebSocket) -> None:
         while not session.session_id and session.active:
             await asyncio.sleep(0.05)
 
+        # Send greeting immediately when call connects — no need to wait for caller to speak
+        try:
+            greeting = await process_transcript(session.session_id, "[call connected]", db)
+            if greeting and session.stream_sid:
+                audio = await synthesize_to_mulaw(greeting)
+                await _send_audio_to_twilio(websocket, session.stream_sid, audio)
+        except Exception as e:
+            logger.error("Error sending greeting: %s", e)
+
         while session.active or not session.transcript_queue.empty():
             try:
                 transcript = await asyncio.wait_for(session.transcript_queue.get(), timeout=1.0)
