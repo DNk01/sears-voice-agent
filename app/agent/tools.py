@@ -1,5 +1,8 @@
 import json
+import logging
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 from app.scheduling.queries import (
     find_technicians as _find_technicians,
     book_appointment as _book_appointment,
@@ -117,6 +120,8 @@ async def dispatch_tool(name: str, args: dict, db: Session) -> str:
             return f"Unknown tool: {name}"
 
     except ValueError as e:
+        logger.warning("Tool %s value error: %s", name, e)
         return f"Error: {e}"
     except Exception as e:
+        logger.error("Tool %s failed: %s", name, e)
         return f"Tool execution failed: {e}"
