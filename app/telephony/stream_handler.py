@@ -46,7 +46,7 @@ async def stream_handler(websocket: WebSocket) -> None:
     session = CallSession()
     db: Session = SessionLocal()
 
-    dg_connection = deepgram_client.listen.asynclive.v("1")
+    dg_connection = deepgram_client.listen.asyncwebsocket.v("1")
 
     async def on_transcript(self, result, **kwargs):  # noqa: N805
         try:
