@@ -5,6 +5,8 @@ services:
       POSTGRES_USER: sears
       POSTGRES_PASSWORD: sears
       POSTGRES_DB: sears
+    ports:
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
