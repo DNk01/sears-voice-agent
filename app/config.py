@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     openai_api_key: str
     deepgram_api_key: str = ""
     resend_api_key: str = ""
-    database_url: str = "postgresql://sears:sears@db:5432/sears"
+    database_url: str
     base_url: str = "http://localhost:8000"
 
     model_config = {"env_file": ".env"}
