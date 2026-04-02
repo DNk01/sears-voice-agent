@@ -2,7 +2,10 @@
 Local chat test — simulates a call without Twilio/Deepgram/TTS.
 Talks directly to the agent's conversation logic (GPT-4o + tools).
 
-Usage:
+Run inside Docker (recommended — shares PostgreSQL with the running app):
+    docker compose exec app python chat.py
+
+Run from host (requires Docker port 5433 exposed):
     python chat.py
 """
 import asyncio
@@ -10,33 +13,18 @@ import sys
 import os
 from pathlib import Path
 
-# Ensure project root is on sys.path when running as a script
 sys.path.insert(0, str(Path(__file__).parent))
 
-# Use the same PostgreSQL as the running Docker app so tokens are shared
+# Must be set before any app imports so pydantic-settings picks it up
 os.environ["DATABASE_URL"] = "postgresql://sears:sears@db:5432/sears"
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-import app.scheduling.models  # noqa — registers models
-from app.db import Base
+import app.scheduling.models  # noqa — registers models with Base
+from app.db import SessionLocal
 from app.agent.conversation import process_transcript, clear_session
 from app.scheduling.seed import seed_database
 
 SESSION_ID = "local-test-call-001"
 
-def setup_db():
-    engine = create_engine(
-        "sqlite:///./test.db",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(bind=engine)
-    Session = sessionmaker(bind=engine)
-    db = Session()
-    seed_database(db)
-    return db
 
 async def main():
     print("=" * 55)
@@ -45,9 +33,9 @@ async def main():
     print("=" * 55)
     print()
 
-    db = setup_db()
+    db = SessionLocal()
+    seed_database(db)
 
-    # Kick off the conversation — agent greets first
     print("Alex: ", end="", flush=True)
     greeting = await process_transcript(SESSION_ID, "[call connected]", db)
     print(greeting)
@@ -72,6 +60,7 @@ async def main():
         clear_session(SESSION_ID)
         db.close()
         print("\n[call ended]")
+
 
 if __name__ == "__main__":
     asyncio.run(main())
