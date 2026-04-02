@@ -2,6 +2,12 @@
 
 An inbound voice AI agent that troubleshoots home appliances, schedules technician visits, and optionally captures appliance photos for visual diagnosis.
 
+## Live Demo
+
+**Call now:** `+1 (662) 591-9049`
+
+Alex answers immediately, 24/7. No waiting, no "press 1 for…".
+
 ## Quick Start
 
 ### Prerequisites
@@ -19,7 +25,7 @@ cp .env.example .env
 ### 2. Start the stack
 
 ```bash
-docker compose up
+docker compose up --build
 ```
 
 This starts PostgreSQL and the FastAPI app on port 8000. The database is seeded automatically with 10 sample technicians.
@@ -30,27 +36,45 @@ This starts PostgreSQL and the FastAPI app on port 8000. The database is seeded 
 ngrok http 8000
 ```
 
-Copy the `https://` URL ngrok gives you and set `BASE_URL` in `.env` to that value, then restart the app.
+Copy the `https://` URL ngrok gives you and set `BASE_URL` in `.env` to that value, then restart:
+
+```bash
+docker compose up --build -d
+```
 
 ### 4. Configure Twilio
 
-1. In your [Twilio Console](https://console.twilio.com), go to your phone number's settings
-2. Set the **Voice webhook** (HTTP POST) to: `https://<your-ngrok-id>.ngrok.io/inbound`
+In your [Twilio Console](https://console.twilio.com), go to your phone number's settings and set the **Voice webhook** (HTTP POST) to:
+
+```
+https://<your-ngrok-url>/inbound
+```
 
 ### 5. Call your number
 
-Call your Twilio phone number. Alex will answer.
+Call your Twilio phone number. Alex will answer within 2-3 seconds.
+
+---
+
+## Testing Without a Phone Call
+
+Use the included `chat.py` script to talk to the agent directly in your terminal — no Twilio, no Deepgram, no cost:
+
+```bash
+python chat.py
+```
+
+This runs the full GPT-4o conversation loop with real database queries. Good for testing scheduling, tool calls, and conversation flow.
 
 ---
 
 ## Running Tests
 
 ```bash
-pip install -r requirements-dev.txt
-OPENAI_API_KEY=test DATABASE_URL=sqlite:///./test.db pytest tests/ -v
+pytest tests/ -v
 ```
 
-38 tests, no external services required (OpenAI/Deepgram/Resend are mocked).
+38 tests, no external services required (OpenAI/Deepgram/Resend are mocked, SQLite used instead of PostgreSQL).
 
 ---
 
@@ -76,6 +100,8 @@ Caller
       → GPT-4o (conversation + tool calls for scheduling/vision)
       → OpenAI TTS → mulaw 8kHz audio → back to caller
 ```
+
+**Barge-in:** When the caller speaks mid-response, the agent stops immediately — Twilio's audio buffer is cleared and queued responses are discarded.
 
 **Tier 3 visual flow (side-channel):**
 ```
@@ -110,8 +136,8 @@ app/
   db.py           SQLAlchemy engine, session factory
   main.py         FastAPI app, router wiring, lifespan
 tests/            38 unit tests (SQLite, mocked external services)
-alembic/          DB migrations
-docs/design.md   Technical design document
+chat.py           local chat test — talk to the agent without calling
+docs/design.md    Technical design document
 ```
 
 ---

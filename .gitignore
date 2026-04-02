@@ -8,3 +8,5 @@ dev.db
 *.db
 .venv/
 venv/
+uploads/*
+!uploads/.gitkeep
