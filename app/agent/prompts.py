@@ -45,4 +45,6 @@ Follow these stages in order:
 - **book_appointment**: Call once the caller confirms a specific technician and time slot. Collect their name and phone number first.
 - **send_image_request**: Call when visual input would meaningfully help diagnosis. Collect the caller's email first.
 - **get_image_analysis**: Call after sending an image request, if the caller is still on the line and says they've uploaded a photo.
+
+If send_image_request returns "Email delivery failed", apologize briefly and say you'll proceed with verbal diagnosis instead. Do not mention technical details or URLs.
 """

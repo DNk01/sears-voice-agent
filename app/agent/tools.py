@@ -107,8 +107,13 @@ async def dispatch_tool(name: str, args: dict, db: Session) -> str:
 
         elif name == "send_image_request":
             token = create_image_request(args["session_id"], args["email"], db)
-            await send_upload_link(args["email"], token, settings.base_url)
-            return "Image upload link sent to the customer's email."
+            try:
+                await send_upload_link(args["email"], token, settings.base_url)
+                return "Image upload link sent to the customer's email."
+            except Exception as e:
+                logger.error("Resend failed for %s: %s", args["email"], e)
+                upload_url = f"{settings.base_url}/upload/{token}"
+                return f"Email delivery failed. Give the customer this URL directly: {upload_url}"
 
         elif name == "get_image_analysis":
             result = _get_image_analysis(args["session_id"], db)
