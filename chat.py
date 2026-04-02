@@ -14,7 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 # Use the same PostgreSQL as the running Docker app so tokens are shared
-os.environ.setdefault("DATABASE_URL", "postgresql://sears:sears@localhost:5433/sears")
+os.environ["DATABASE_URL"] = "postgresql://sears:sears@localhost:5433/sears"
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
