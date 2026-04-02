@@ -13,8 +13,8 @@ from pathlib import Path
 # Ensure project root is on sys.path when running as a script
 sys.path.insert(0, str(Path(__file__).parent))
 
-# Use SQLite so no PostgreSQL needed
-os.environ.setdefault("DATABASE_URL", "sqlite:///./test.db")
+# Use the same PostgreSQL as the running Docker app so tokens are shared
+os.environ.setdefault("DATABASE_URL", "postgresql://sears:sears@localhost:5432/sears")
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
