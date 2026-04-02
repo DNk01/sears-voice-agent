@@ -26,18 +26,29 @@ class CallSession:
     stream_sid: str = ""
     transcript_queue: asyncio.Queue = field(default_factory=asyncio.Queue)
     active: bool = True
+    agent_speaking: bool = False
 
 
-async def _send_audio_to_twilio(websocket: WebSocket, stream_sid: str, mulaw_audio: bytes) -> None:
-    """Send mulaw audio chunks back to Twilio over the WebSocket."""
-    for chunk in chunk_audio(mulaw_audio, chunk_size=8000):
-        payload = base64.b64encode(chunk).decode("utf-8")
-        message = json.dumps({
-            "event": "media",
-            "streamSid": stream_sid,
-            "media": {"payload": payload},
-        })
-        await websocket.send_text(message)
+async def _send_audio_to_twilio(websocket: WebSocket, session: "CallSession", mulaw_audio: bytes) -> None:
+    """Send mulaw audio chunks to Twilio. Stops immediately on barge-in."""
+    session.agent_speaking = True
+    try:
+        for chunk in chunk_audio(mulaw_audio, chunk_size=800):  # 100ms chunks for responsive barge-in
+            if not session.agent_speaking:
+                # Caller started speaking — clear Twilio's audio buffer and stop
+                await websocket.send_text(json.dumps({
+                    "event": "clear",
+                    "streamSid": session.stream_sid,
+                }))
+                return
+            payload = base64.b64encode(chunk).decode("utf-8")
+            await websocket.send_text(json.dumps({
+                "event": "media",
+                "streamSid": session.stream_sid,
+                "media": {"payload": payload},
+            }))
+    finally:
+        session.agent_speaking = False
 
 
 @router.websocket("/stream")
@@ -52,6 +63,11 @@ async def stream_handler(websocket: WebSocket) -> None:
         try:
             alt = result.channel.alternatives[0]
             if result.is_final and alt.transcript.strip():
+                # Barge-in: stop agent and discard queued responses
+                if session.agent_speaking:
+                    session.agent_speaking = False
+                    while not session.transcript_queue.empty():
+                        session.transcript_queue.get_nowait()
                 await session.transcript_queue.put(alt.transcript.strip())
         except Exception as e:
             logger.warning("Transcript parsing error: %s", e)
@@ -96,7 +112,7 @@ async def stream_handler(websocket: WebSocket) -> None:
             greeting = await process_transcript(session.session_id, "[call connected]", db)
             if greeting and session.stream_sid:
                 audio = await synthesize_to_mulaw(greeting)
-                await _send_audio_to_twilio(websocket, session.stream_sid, audio)
+                await _send_audio_to_twilio(websocket, session, audio)
         except Exception as e:
             logger.error("Error sending greeting: %s", e)
 
@@ -110,7 +126,7 @@ async def stream_handler(websocket: WebSocket) -> None:
                 reply = await process_transcript(session.session_id, transcript, db)
                 if reply and session.stream_sid:
                     audio = await synthesize_to_mulaw(reply)
-                    await _send_audio_to_twilio(websocket, session.stream_sid, audio)
+                    await _send_audio_to_twilio(websocket, session, audio)
             except Exception as e:
                 logger.error("Error processing transcript: %s", e)
 
