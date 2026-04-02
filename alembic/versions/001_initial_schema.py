@@ -26,7 +26,6 @@ def upgrade() -> None:
         sa.Column("email", sa.String(), nullable=False),
         sa.Column("phone", sa.String(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
-        sa.Index("ix_technicians_id", "id"),
     )
 
     op.create_table(
