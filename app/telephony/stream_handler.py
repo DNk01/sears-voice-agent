@@ -48,7 +48,6 @@ async def stream_handler(websocket: WebSocket) -> None:
 
     dg_connection = deepgram_client.listen.asynclive.v("1")
 
-    @dg_connection.on(LiveTranscriptionEvents.Transcript)
     async def on_transcript(self, result, **kwargs):  # noqa: N805
         try:
             alt = result.channel.alternatives[0]
@@ -56,6 +55,8 @@ async def stream_handler(websocket: WebSocket) -> None:
                 await session.transcript_queue.put(alt.transcript.strip())
         except Exception as e:
             logger.warning("Transcript parsing error: %s", e)
+
+    dg_connection.on(LiveTranscriptionEvents.Transcript, on_transcript)
 
     await dg_connection.start(LiveOptions(
         encoding="mulaw",
