@@ -16,14 +16,23 @@ router = APIRouter()
 UPLOAD_DIR = "uploads"
 
 
-async def analyze_and_store(req_id: int, image_path: str, db: Session) -> None:
-    """Background task: analyze uploaded image and store result."""
+async def analyze_and_store(req_id: int, image_path: str) -> None:
+    """Background task: analyze uploaded image and store result.
+
+    Opens its own DB session because the request session is closed by the
+    time this coroutine runs.
+    """
+    from app.db import SessionLocal
     try:
         result = await analyze_image(image_path)
-        req = db.get(ImageRequest, req_id)
-        if req:
-            req.analysis_result = json.dumps(result)
-            db.commit()
+        db = SessionLocal()
+        try:
+            req = db.get(ImageRequest, req_id)
+            if req:
+                req.analysis_result = json.dumps(result)
+                db.commit()
+        finally:
+            db.close()
     except Exception:
         pass
 
@@ -68,7 +77,7 @@ async def upload_image(
 
     upload_dir = Path(UPLOAD_DIR)
     upload_dir.mkdir(exist_ok=True)
-    safe_name = f"{token}_{image.filename or 'photo.jpg'}"
+    safe_name = f"{token}_{Path(image.filename).name if image.filename else 'photo.jpg'}"
     image_path = str(upload_dir / safe_name)
     contents = await image.read()
     with open(image_path, "wb") as f:
@@ -78,7 +87,7 @@ async def upload_image(
     req.image_path = image_path
     db.commit()
 
-    asyncio.create_task(analyze_and_store(req.id, image_path, db))
+    asyncio.create_task(analyze_and_store(req.id, image_path))
 
     return """<!DOCTYPE html>
 <html>

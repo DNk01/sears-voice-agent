@@ -9,21 +9,40 @@ from app.scheduling.models import (
 
 def find_technicians(zip_code: str, appliance_type: str, db: Session) -> list[dict]:
     """Return up to 3 available technicians matching zip and appliance type."""
-    rows = (
-        db.query(Technician, AvailabilitySlot)
+    # Find distinct technician IDs that serve this zip and handle this appliance type.
+    # Querying ServiceArea and Specialty separately avoids row multiplication from the
+    # cross-join that would occur if both were joined simultaneously.
+    matching_tech_ids = (
+        db.query(Technician.id)
         .join(ServiceArea, ServiceArea.technician_id == Technician.id)
         .join(Specialty, Specialty.technician_id == Technician.id)
-        .join(AvailabilitySlot, AvailabilitySlot.technician_id == Technician.id)
         .filter(
             ServiceArea.zip_code == zip_code,
             Specialty.appliance_type == appliance_type,
-            AvailabilitySlot.is_booked == False,  # noqa: E712
-            AvailabilitySlot.start_time > datetime.now(timezone.utc),
         )
-        .order_by(AvailabilitySlot.start_time.asc())
-        .limit(3)
+        .distinct()
         .all()
     )
+    tech_ids = [row[0] for row in matching_tech_ids]
+
+    results = []
+    for tech_id in tech_ids:
+        slot = (
+            db.query(AvailabilitySlot)
+            .filter(
+                AvailabilitySlot.technician_id == tech_id,
+                AvailabilitySlot.is_booked == False,  # noqa: E712
+                AvailabilitySlot.start_time > datetime.now(timezone.utc),
+            )
+            .order_by(AvailabilitySlot.start_time.asc())
+            .first()
+        )
+        if slot:
+            tech = db.get(Technician, tech_id)
+            results.append((tech, slot))
+        if len(results) == 3:
+            break
+
     return [
         {
             "technician_id": tech.id,
@@ -32,7 +51,7 @@ def find_technicians(zip_code: str, appliance_type: str, db: Session) -> list[di
             "start_time": slot.start_time.strftime("%A, %B %d at %I:%M %p").replace(" 0", " "),
             "end_time": slot.end_time.strftime("%I:%M %p").lstrip("0"),
         }
-        for tech, slot in rows
+        for tech, slot in results
     ]
 
 
@@ -47,7 +66,14 @@ def book_appointment(
     db: Session,
 ) -> dict:
     """Book an appointment. Raises ValueError if slot is already booked."""
-    slot = db.get(AvailabilitySlot, slot_id)
+    # Use with_for_update() to lock the row on PostgreSQL and prevent double-booking
+    # under concurrent requests. Silently ignored on SQLite (tests).
+    slot = (
+        db.query(AvailabilitySlot)
+        .filter(AvailabilitySlot.id == slot_id)
+        .with_for_update()
+        .first()
+    )
     if slot is None or slot.is_booked:
         raise ValueError(f"Slot {slot_id} is already booked or does not exist")
 
