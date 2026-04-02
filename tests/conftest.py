@@ -1,3 +1,8 @@
+import os
+
+os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+os.environ.setdefault("OPENAI_API_KEY", "test")
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -42,6 +47,7 @@ def client(db):
         yield db
 
     app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as c:
-        yield c
+    # Don't use context manager — avoids triggering lifespan (which uses the prod DB engine)
+    c = TestClient(app, raise_server_exceptions=True)
+    yield c
     app.dependency_overrides.clear()
