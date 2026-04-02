@@ -61,10 +61,10 @@ Call your Twilio phone number. Alex will answer within 2-3 seconds.
 Use the included `chat.py` script to talk to the agent directly in your terminal — no Twilio, no Deepgram, no cost:
 
 ```bash
-python chat.py
+docker compose exec app python chat.py
 ```
 
-This runs the full GPT-4o conversation loop with real database queries. Good for testing scheduling, tool calls, and conversation flow.
+This runs the full GPT-4o conversation loop against the same PostgreSQL database as the live app. Image upload links created during the chat session will work in a real browser. Good for testing scheduling, tool calls, Tier 3 vision flow, and conversation memory.
 
 ---
 
@@ -74,7 +74,7 @@ This runs the full GPT-4o conversation loop with real database queries. Good for
 pytest tests/ -v
 ```
 
-38 tests, no external services required (OpenAI/Deepgram/Resend are mocked, SQLite used instead of PostgreSQL).
+40 tests, no external services required (OpenAI/Deepgram/Resend are mocked, SQLite used instead of PostgreSQL).
 
 ---
 
@@ -85,7 +85,7 @@ pytest tests/ -v
 | [Twilio](https://twilio.com) | Inbound calls + Media Streams | Free trial ($15 credit) |
 | [OpenAI](https://platform.openai.com) | GPT-4o (LLM + Vision) + TTS | Pay-per-use |
 | [Deepgram](https://deepgram.com) | Real-time speech-to-text | 200 hrs/month free |
-| [Resend](https://resend.com) | Email for image upload links | 3,000 emails/month free |
+| [Resend](https://resend.com) | Email for image upload links | 3,000 emails/month free — free plan sends only to your verified account email |
 
 ---
 
